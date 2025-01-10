@@ -1,0 +1,8 @@
+services:
+  musk-chan:
+    build: .
+    container_name: musk-chan
+    restart: unless-stopped
+    volumes:
+      - .:/app
+      - /app/node_modules 

@@ -1,0 +1,22 @@
+{
+  "name": "musk-chan",
+  "module": "index.js",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@discordjs/rest": "^2.4.2",
+    "@discordjs/voice": "^0.18.0",
+    "@distube/ytdl-core": "^4.15.8",
+    "discord.js": "^14.17.3",
+    "ffmpeg-static": "^5.2.0",
+    "googleapis": "^144.0.0",
+    "opusscript": "^0.1.1",
+    "sodium-native": "^4.3.1",
+    "@discordjs/opus": "^0.9.0"
+  }
+}
