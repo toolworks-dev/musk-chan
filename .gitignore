@@ -3,3 +3,9 @@ config.json
 node_modules
 m*.md
 memory/
+docker-compose-wireguard.yml
+docker-compose-rocm.yml
+wire*/
+peer*.conf
+notes
+prod*.yml
