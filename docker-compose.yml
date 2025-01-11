@@ -1,9 +1,26 @@
 services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_models:/root/.ollama
+      - ./Modelfile:/Modelfile
+      - ./Modelfile2:/Modelfile2
+    ports:
+      - "11434:11434"
+
   musk-chan:
     build: .
     container_name: musk-chan
     restart: unless-stopped
+    depends_on:
+      - ollama
     volumes:
       - .:/app
       - /app/node_modules
-      - ./config.json:/app/config.json 
+      - ./config.json:/app/config.json
+      - ./memory:/app/memory
+
+volumes:
+  ollama_models: 

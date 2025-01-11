@@ -1,6 +1,6 @@
 # Musk-Chan Discord Bot
 
-A feature-rich Discord bot built with discord.js that allows you to play music from a Youtube Invidious instance in your Discord server.
+A feature-rich Discord bot built with discord.js that allows you to play music and chat with AI.
 
 ![musk](https://github.com/user-attachments/assets/5c3f68c0-84eb-496f-ac1c-f47affc71dc6)
 
@@ -11,6 +11,7 @@ A feature-rich Discord bot built with discord.js that allows you to play music f
 - 🎮 Interactive song selection from search results
 - 🔄 Queue management commands (clear, shuffle, skip)
 - ⏯️ Playback controls (pause, stop)
+- 🤖 AI Chat powered by Ollama with Short Term and Long Term Memory
 
 ## Commands
 
@@ -22,84 +23,42 @@ A feature-rich Discord bot built with discord.js that allows you to play music f
 - `/pause` - Pause the current song
 - `/stop` - Stop playback and clear queue
 - `/nowplaying` - Shows current song
+- `/chat <message>` - Chat with Musk-Chan AI
+- `/chatsettings clear` - Clear your chat history
+- `/chatsettings model <name>` - Change the AI model
+- `/chatsettings listmodels` - List available models
+- `/chatsettings delete <name>` - Delete an AI model
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/)
-- [Bun](https://bun.sh/) package manager
+- Docker / Docker Compose
 - Discord Bot Token
 - Public or Private Invidious Instance 
   - Find one at https://api.invidious.io/ or host your own (reccomended)
 - Soundcloud Client ID
   - Get yours following this guide: https://www.npmjs.com/package/soundcloud-downloader#client-id
-  
-## Installation
 
-1. Clone the repository:
+## Setup
+
+1. Clone the repository
+2. Copy `config.json.example` to `config.json` and fill in your Discord bot token and other settings
+3. Start the services:
 ```bash
-git clone https://github.com/toolworks-dev/musk-chan.git
-cd musk-chan
+docker compose up -d
 ```
-
-2. Install dependencies:
+4. Create the custom AI model:
 ```bash
-bun install
+docker compose exec musk-chan bun run pull-models
+docker compose exec ollama ollama create muskchan2 --file Modelfile2
 ```
 
-3. Create a `config.json` file in the root directory:
-```json
-{
-    "token": "YOUR_DISCORD_BOT_TOKEN",
-    "clientId": "YOUR_BOT_CLIENT_ID",
-    "invidiousInstance": "https://invidious.example.com",
-    "soundcloudClientId": "YOUR_SOUNDCLOUD_CLIENT_ID"
-}
-```
+## AI Chat
+The bot uses Ollama for AI chat functionality. By default, it uses the muskchan2 model (based on llama3.2). You can:
+- Change models using `/chatsettings model <name>`
+- View available models with `/chatsettings listmodels`
+- Clear chat history with `/chatsettings clear`
+- Delete models with `/chatsettings delete <name>` (cannot delete default muskchan1)
 
-4. Start the bot:
-```bash
-bun run index.js
-```
-
-## Docker Support
-
-You can run the bot using Docker in two ways:
-
-### Option 1: Using the Official Image
-
-1. Create a `config.json` file with your bot configuration
-2. Create a `docker-compose.yml`:
-```yaml
-services:
-  musk-chan:
-    image: 0xgingi/musk-chan:latest
-    container_name: musk-chan
-    restart: unless-stopped
-    volumes:
-      - ./config.json:/app/config.json
-```
-
-3. Run the container:
-```bash
-docker-compose up -d
-```
-
-### Option 2: Building from Source
-
-1. Clone the repository:
-```bash
-git clone https://github.com/toolworks-dev/musk-chan.git
-cd musk-chan
-```
-
-2. Create your `config.json` file
-
-3. Build and run using docker-compose:
-```bash
-docker-compose up -d --build
-```
-
-The bot will automatically restart unless stopped manually. You can view the logs using:
-```bash
-docker-compose logs -f
-```
+To add more models:
+1. Edit `scripts/pullModels.js` to include additional models
+2. Run `docker compose exec musk-chan bun run pull-models`

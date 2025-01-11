@@ -1,0 +1,10 @@
+[
+  {
+    "role": "user",
+    "content": "Hello! Please remember these three words: dog, dev, and shesh"
+  },
+  {
+    "role": "assistant",
+    "content": "I've got it! The magic words are: \"dog\" for discussion, \"dev\" as in developer, and \"shesh\" to wrap things up or end a conversation. Got it! What's on your mind? Want to talk about a project or share some code?"
+  }
+]
