@@ -1,5 +1,13 @@
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
-const { token } = require('./config.json');
+import { Client, GatewayIntentBits, Collection } from 'discord.js';
+import { loadCommands } from './handlers/commandHandler.js';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { readFileSync } from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const config = JSON.parse(readFileSync(join(__dirname, 'config.json'), 'utf8'));
 
 const client = new Client({
     intents: [
@@ -10,9 +18,6 @@ const client = new Client({
 });
 
 client.commands = new Collection();
-
-const commandFiles = require('./handlers/commandHandler');
-commandFiles.loadCommands(client);
 
 client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}`);
@@ -35,4 +40,5 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-client.login(token); 
+await loadCommands(client, config);
+await client.login(config.token); 

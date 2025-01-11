@@ -1,5 +1,4 @@
 const { SlashCommandBuilder } = require('discord.js');
-const ytdl = require('@distube/ytdl-core');
 const { createAudioResource } = require('@discordjs/voice');
 const musicManager = require('../utils/musicManager');
 
@@ -18,16 +17,14 @@ module.exports = {
 
         queue.shift();
         const nextSong = queue[0];
-        const stream = ytdl(nextSong.url, {
-            filter: 'audioonly',
-            quality: 'highestaudio',
-            highWaterMark: 1 << 25
-        });
-        const resource = createAudioResource(stream, {
-            inlineVolume: true
-        });
         
-        player.play(resource);
-        await interaction.reply(`Skipping to next song: ${nextSong.title}`);
+        try {
+            const resource = await musicManager.createAudioResource(nextSong.url);
+            player.play(resource);
+            await interaction.reply(`Skipping to next song: ${nextSong.title}`);
+        } catch (error) {
+            console.error('Error playing next song:', error);
+            await interaction.reply('Failed to play the next song. Please try skipping again.');
+        }
     },
 }; 

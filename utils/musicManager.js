@@ -1,48 +1,102 @@
-const { Collection } = require('discord.js');
-const { createAudioPlayer, AudioPlayerStatus, createAudioResource } = require('@discordjs/voice');
-const ytdl = require('@distube/ytdl-core');
-const fs = require('fs');
-const path = require('path');
-const { EmbedBuilder } = require('discord.js');
-const { google } = require('googleapis');
-const { EventEmitter } = require('events');
+import { Collection } from 'discord.js';
+import { createAudioPlayer, AudioPlayerStatus, createAudioResource, StreamType } from '@discordjs/voice';
+import { EventEmitter } from 'events';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const config = JSON.parse(readFileSync(join(__dirname, '../config.json'), 'utf8'));
 
 class MusicManager extends EventEmitter {
     constructor() {
         super();
         this.queues = new Collection();
         this.players = new Collection();
-        this.agent = this.createYTDLAgent();
         this.playerListeners = new Set();
-        this.youtube = google.youtube({
-            version: 'v3',
-            auth: require('../config.json').youtubeApiKey
-        });
+        this.invidiousInstance = config.invidiousInstance || 'https://invidious.0xgingi.com';
     }
 
-    createYTDLAgent() {
+    async getVideoDetails(url) {
         try {
-            const cookiesPath = path.join(__dirname, '../cookies.txt');
-            if (fs.existsSync(cookiesPath)) {
-                const cookiesData = fs.readFileSync(cookiesPath, 'utf8');
-                return ytdl.createAgent(JSON.parse(cookiesData));
-            }
+            const videoId = this.extractVideoId(url);
+            if (!videoId) return null;
+
+            const response = await fetch(`${this.invidiousInstance}/api/v1/videos/${videoId}`);
+            const data = await response.json();
+
+            return {
+                title: data.title,
+                url: `${this.invidiousInstance}/watch?v=${videoId}`,
+                duration: data.lengthSeconds,
+                thumbnail: data.videoThumbnails[0].url,
+                author: data.author
+            };
         } catch (error) {
-            console.error('Error creating YTDL agent:', error);
+            console.error('Error fetching video details:', error);
+            return null;
+        }
+    }
+
+    async createAudioResource(url) {
+        try {
+            const videoId = this.extractVideoId(url);
+            if (!videoId) throw new Error('Invalid video URL');
+
+            const response = await fetch(`${this.invidiousInstance}/api/v1/videos/${videoId}`);
+            const data = await response.json();
+            
+            const audioFormat = data.adaptiveFormats
+                .filter(f => f.type.startsWith('audio'))
+                .sort((a, b) => b.bitrate - a.bitrate)[0];
+
+            if (!audioFormat) {
+                throw new Error('No suitable audio format found');
+            }
+
+            const stream = await fetch(audioFormat.url).then(res => res.body);
+
+            return createAudioResource(stream, {
+                inputType: StreamType.Arbitrary,
+                inlineVolume: true
+            });
+        } catch (error) {
+            console.error('Error creating audio resource:', error);
+            throw error;
+        }
+    }
+
+    async searchYouTube(query) {
+        try {
+            const response = await fetch(`${this.invidiousInstance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
+            const results = await response.json();
+
+            return results.map(video => ({
+                title: video.title,
+                url: `${this.invidiousInstance}/watch?v=${video.videoId}`,
+                duration: video.lengthSeconds,
+                thumbnail: video.videoThumbnails[0].url,
+                author: video.author
+            }));
+        } catch (error) {
+            console.error('Error searching:', error);
+            return null;
+        }
+    }
+
+    extractVideoId(url) {
+        const patterns = [
+            /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i,
+            /(?:invidious\.[^\/]+\/watch\?v=)([^"&?\/\s]{11})/i
+        ];
+
+        for (const pattern of patterns) {
+            const match = url.match(pattern);
+            if (match) return match[1];
         }
         return null;
-    }
-
-    saveCookies(cookies) {
-        try {
-            const cookiesPath = path.join(__dirname, '../cookies.txt');
-            fs.writeFileSync(cookiesPath, cookies);
-            this.agent = ytdl.createAgent(JSON.parse(cookies));
-            return true;
-        } catch (error) {
-            console.error('Error saving cookies:', error);
-            return false;
-        }
     }
 
     getGuildQueue(guildId) {
@@ -81,24 +135,33 @@ class MusicManager extends EventEmitter {
 
             if (queue.length > 0) {
                 console.log('Playing next song:', queue[0].title);
-                const stream = ytdl(queue[0].url, {
-                    filter: 'audioonly',
-                    quality: 'highestaudio',
-                    highWaterMark: 1 << 25,
-                    agent: this.agent
-                });
-                const resource = createAudioResource(stream, {
-                    inlineVolume: true
-                });
-                resource.volume?.setVolume(1);
-                player.play(resource);
-                
-                const embed = new EmbedBuilder()
-                    .setTitle('Now Playing')
-                    .setDescription(queue[0].title)
-                    .setColor('#0099ff');
-                
-                this.emit('songStart', guildId, embed);
+                try {
+                    const stream = ytdl(queue[0].url, {
+                        filter: format => format.audioCodec === 'opus' && format.container === 'webm',
+                        quality: 'highestaudio',
+                        highWaterMark: 1 << 25,
+                        agent: this.agent,
+                        liveBuffer: 1000
+                    });
+
+                    const resource = createAudioResource(stream, {
+                        inputType: StreamType.WebmOpus,
+                        inlineVolume: true
+                    });
+
+                    resource.volume?.setVolume(1);
+                    player.play(resource);
+                    
+                    const embed = new EmbedBuilder()
+                        .setTitle('Now Playing')
+                        .setDescription(queue[0].title)
+                        .setColor('#0099ff');
+                    
+                    this.emit('songStart', guildId, embed);
+                } catch (error) {
+                    console.error('Error playing song:', error);
+                    this.emit('playerError', guildId, error);
+                }
             }
         });
 
@@ -118,28 +181,6 @@ class MusicManager extends EventEmitter {
         }
     }
 
-    async getVideoDetails(url) {
-        try {
-            const videoInfo = await ytdl.getInfo(url, {
-                agent: this.agent
-            });
-            return {
-                id: videoInfo.videoDetails.videoId,
-                title: videoInfo.videoDetails.title,
-                url: videoInfo.videoDetails.video_url,
-                duration: parseInt(videoInfo.videoDetails.lengthSeconds)
-            };
-        } catch (error) {
-            console.error('Error fetching video details:', error);
-            return null;
-        }
-    }
-
-    extractVideoId(url) {
-        const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
-        return match ? match[1] : null;
-    }
-
     extractPlaylistId(url) {
         const match = url.match(/[&?]list=([^&]+)/i);
         return match ? match[1] : null;
@@ -151,64 +192,26 @@ class MusicManager extends EventEmitter {
 
     async getPlaylistDetails(url) {
         try {
-            const playlistId = new URL(url).searchParams.get('list');
+            const playlistId = this.extractPlaylistId(url);
             if (!playlistId) return null;
 
-            const videos = [];
-            let nextPageToken = '';
+            const response = await fetch(`${this.invidiousInstance}/api/v1/playlists/${playlistId}`);
+            const data = await response.json();
 
-            do {
-                const response = await this.youtube.playlistItems.list({
-                    part: 'snippet',
-                    playlistId: playlistId,
-                    maxResults: 50,
-                    pageToken: nextPageToken
-                });
-
-                for (const item of response.data.items) {
-                    const videoId = item.snippet.resourceId.videoId;
-                    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-                    const videoDetails = await this.getVideoDetails(videoUrl);
-                    if (videoDetails) {
-                        videos.push(videoDetails);
-                    }
-                }
-
-                nextPageToken = response.data.nextPageToken;
-            } while (nextPageToken);
+            const videos = data.videos.map(video => ({
+                title: video.title,
+                url: `${this.invidiousInstance}/watch?v=${video.videoId}`,
+                duration: video.lengthSeconds,
+                thumbnail: video.videoThumbnails?.[0]?.url || '',
+                author: video.author
+            }));
 
             return {
-                title: response.data.items[0].snippet.playlistTitle,
+                title: data.title,
                 videos: videos
             };
         } catch (error) {
             console.error('Error fetching playlist:', error);
-            return null;
-        }
-    }
-
-    async searchYouTube(query) {
-        try {
-            const response = await this.youtube.search.list({
-                part: 'snippet',
-                q: query,
-                type: 'video',
-                maxResults: 10
-            });
-
-            const videos = [];
-            for (const item of response.data.items) {
-                const videoId = item.id.videoId;
-                const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-                const videoDetails = await this.getVideoDetails(videoUrl);
-                if (videoDetails) {
-                    videos.push(videoDetails);
-                }
-            }
-
-            return videos;
-        } catch (error) {
-            console.error('Error searching YouTube:', error);
             return null;
         }
     }
@@ -230,4 +233,4 @@ class MusicManager extends EventEmitter {
     }
 }
 
-module.exports = new MusicManager(); 
+export default new MusicManager(); 

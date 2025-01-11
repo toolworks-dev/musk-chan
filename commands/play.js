@@ -1,9 +1,8 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
-const ytdl = require('@distube/ytdl-core');
-const { createAudioResource, joinVoiceChannel, AudioPlayerStatus } = require('@discordjs/voice');
-const musicManager = require('../utils/musicManager');
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { joinVoiceChannel } from '@discordjs/voice';
+import musicManager from '../utils/musicManager.js';
 
-module.exports = {
+export default {
     data: new SlashCommandBuilder()
         .setName('play')
         .setDescription('Play a YouTube video or playlist')
@@ -17,159 +16,78 @@ module.exports = {
         const voiceChannel = interaction.member.voice.channel;
 
         if (!voiceChannel) {
-            return interaction.reply('You need to be in a voice channel!');
+            return interaction.reply({ 
+                content: 'You need to be in a voice channel!',
+                ephemeral: true 
+            });
         }
 
         await interaction.deferReply();
 
         try {
+            const connection = joinVoiceChannel({
+                channelId: voiceChannel.id,
+                guildId: interaction.guildId,
+                adapterCreator: interaction.guild.voiceAdapterCreator,
+                selfDeaf: true
+            });
+
+            const player = musicManager.getPlayer(interaction.guildId);
+            connection.subscribe(player);
+
             const queue = musicManager.getGuildQueue(interaction.guildId);
-            
-            const isUrl = query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/);
-            
-            if (isUrl) {
-                const isPlaylist = query.includes('playlist?list=');
-                
-                if (isPlaylist) {
-                    const playlistDetails = await musicManager.getPlaylistDetails(query);
-                    if (!playlistDetails || !playlistDetails.videos) {
-                        return interaction.editReply('Could not load playlist!');
-                    }
+            const isUrl = query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|invidious\.[^\/]+)\/.+$/);
 
-                    queue.push(...playlistDetails.videos);
-                    
-                    const embed = new EmbedBuilder()
-                        .setTitle('Added Playlist to Queue')
-                        .setDescription(`Added ${playlistDetails.videos.length} songs from playlist: ${playlistDetails.title}`)
-                        .setColor('#00FF00');
-
-                    await interaction.editReply({ embeds: [embed] });
-                } else {
+            try {
+                if (isUrl) {
                     const videoDetails = await musicManager.getVideoDetails(query);
                     if (!videoDetails) {
-                        return interaction.editReply('Could not load video details!');
+                        return interaction.editReply('Failed to get video details!');
                     }
+
                     queue.push(videoDetails);
-                    await handlePlayback(interaction, voiceChannel, queue, false);
+                    const embed = new EmbedBuilder()
+                        .setTitle('Added to Queue')
+                        .setDescription(`[${videoDetails.title}](${videoDetails.url})`)
+                        .setColor('#00FF00');
+
+                    if (queue.length === 1) {
+                        musicManager.setupEventHandlers(interaction.guildId, interaction.channel);
+                        await player.play(await musicManager.createAudioResource(videoDetails.url));
+                    }
+
+                    return interaction.editReply({ embeds: [embed] });
+                } else {
+                    const searchResults = await musicManager.searchYouTube(query);
+                    if (!searchResults || searchResults.length === 0) {
+                        return interaction.editReply('No results found!');
+                    }
+
+                    const firstResult = searchResults[0];
+                    queue.push(firstResult);
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('Added to Queue')
+                        .setDescription(`[${firstResult.title}](${firstResult.url})`)
+                        .setColor('#00FF00');
+
+                    if (queue.length === 1) {
+                        musicManager.setupEventHandlers(interaction.guildId, interaction.channel);
+                        await player.play(await musicManager.createAudioResource(firstResult.url));
+                    }
+
+                    return interaction.editReply({ embeds: [embed] });
                 }
-            } else {
-                const searchResults = await musicManager.searchYouTube(query);
-                
-                if (!searchResults || searchResults.length === 0) {
-                    return interaction.editReply('No results found!');
+            } catch (error) {
+                console.error('Error playing song:', error);
+                if (error.message.includes('Status code: 403')) {
+                    return interaction.editReply('Cannot play this video due to YouTube restrictions. Try setting cookies with /setcookies command.');
                 }
-
-                const selectMenu = new StringSelectMenuBuilder()
-                    .setCustomId('song-select')
-                    .setPlaceholder('Select a song')
-                    .addOptions(
-                        searchResults.map((result, index) => ({
-                            label: result.title.substring(0, 100),
-                            description: `Duration: ${formatDuration(result.duration)}`,
-                            value: index.toString()
-                        }))
-                    );
-
-                const row = new ActionRowBuilder().addComponents(selectMenu);
-
-                const response = await interaction.editReply({
-                    content: 'Select a song to play:',
-                    components: [row]
-                });
-
-                try {
-                    const collector = response.createMessageComponentCollector({ 
-                        time: 30000,
-                        max: 1
-                    });
-
-                    collector.on('collect', async i => {
-                        if (i.user.id !== interaction.user.id) {
-                            return i.reply({ content: 'This selection is not for you!', ephemeral: true });
-                        }
-
-                        const selectedIndex = parseInt(i.values[0]);
-                        const selectedVideo = searchResults[selectedIndex];
-                        
-                        queue.push(selectedVideo);
-                        await handlePlayback(interaction, voiceChannel, queue, true, i);
-                    });
-
-                    collector.on('end', collected => {
-                        if (collected.size === 0) {
-                            interaction.editReply({
-                                content: 'Song selection timed out!',
-                                components: []
-                            });
-                        }
-                    });
-
-                } catch (error) {
-                    console.error('Error in selection handling:', error);
-                    await interaction.editReply('An error occurred while processing your selection.');
-                }
+                return interaction.editReply('Failed to play the video. Please try another one.');
             }
-
         } catch (error) {
-            console.error('Main error:', error);
-            interaction.editReply('Failed to play the video/playlist!');
+            console.error('Error in play command:', error);
+            return interaction.editReply('An error occurred while processing your request.');
         }
-    }
-};
-
-async function handlePlayback(interaction, voiceChannel, queue, isFromSearch, selectInteraction = null) {
-    const connection = joinVoiceChannel({
-        channelId: voiceChannel.id,
-        guildId: voiceChannel.guild.id,
-        adapterCreator: voiceChannel.guild.voiceAdapterCreator,
-        selfDeaf: true,
-        selfMute: false
-    });
-
-    const player = musicManager.getPlayer(interaction.guildId);
-    connection.subscribe(player);
-
-    const messageChannel = interaction.channel;
-    musicManager.setupEventHandlers(interaction.guildId, messageChannel);
-
-    if (queue.length === 1) {
-        try {
-            const stream = ytdl(queue[0].url, {
-                filter: 'audioonly',
-                quality: 'highestaudio',
-                highWaterMark: 1 << 25,
-                agent: musicManager.agent
-            });
-            
-            const resource = createAudioResource(stream, {
-                inlineVolume: true
-            });
-            resource.volume?.setVolume(1);
-            player.play(resource);
-        } catch (error) {
-            console.error('Error during stream creation:', error);
-            return interaction.channel.send('Error playing the audio. Please try again.');
-        }
-    }
-
-    const embed = new EmbedBuilder()
-        .setTitle('Added to Queue')
-        .setDescription(`Added: ${queue[queue.length - 1].title}`)
-        .setColor('#00FF00');
-
-    if (isFromSearch && selectInteraction) {
-        await selectInteraction.update({ 
-            content: 'Song added to queue!',
-            embeds: [embed],
-            components: [] 
-        });
-    } else {
-        await interaction.editReply({ embeds: [embed] });
-    }
-}
-
-function formatDuration(seconds) {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-} 
+    },
+}; 
