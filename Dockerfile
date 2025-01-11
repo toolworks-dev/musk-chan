@@ -21,8 +21,6 @@ COPY package*.json ./
 
 RUN bun install
 
-COPY config.json ./
-
 COPY . .
 
 CMD ["bun", "run", "index.js"] 
