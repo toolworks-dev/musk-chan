@@ -1,5 +1,6 @@
 {
     "token": "",
     "clientId": "",
-    "invidiousInstance": "https://invidious.0xgingi.com"
+    "invidiousInstance": "https://invidious.0xgingi.com",
+    "soundcloudClientId": ""
 } 

@@ -1,8 +1,8 @@
-const { SlashCommandBuilder } = require('discord.js');
-const { createAudioResource } = require('@discordjs/voice');
-const musicManager = require('../utils/musicManager');
+import { SlashCommandBuilder } from 'discord.js';
+import { createAudioResource } from '@discordjs/voice';
+import musicManager from '../utils/musicManager.js';
 
-module.exports = {
+export default {
     data: new SlashCommandBuilder()
         .setName('next')
         .setDescription('Skip to the next song'),

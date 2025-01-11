@@ -1,7 +1,7 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const musicManager = require('../utils/musicManager');
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import musicManager from '../utils/musicManager.js';
 
-module.exports = {
+export default {
     data: new SlashCommandBuilder()
         .setName('queue')
         .setDescription('Show the current music queue'),
@@ -17,11 +17,11 @@ module.exports = {
             .setTitle('Current Queue')
             .setColor('#FF0000');
 
-        const songs = queue.map((url, index) => {
+        const songs = queue.map((song, index) => {
             if (index === 0) {
-                return `🎵 **Now Playing**: ${url}`;
+                return `🎵 **Now Playing**: ${song.title}`;
             }
-            return `${index}. ${url}`;
+            return `${index}. ${song.title}`;
         });
 
         const chunkSize = 10;

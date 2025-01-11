@@ -1,7 +1,7 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const musicManager = require('../utils/musicManager');
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import musicManager from '../utils/musicManager.js';
 
-module.exports = {
+export default {
     data: new SlashCommandBuilder()
         .setName('nowplaying')
         .setDescription('Shows the currently playing song'),

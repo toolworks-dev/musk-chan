@@ -1,9 +1,10 @@
-import { Collection } from 'discord.js';
+import { Collection, EmbedBuilder } from 'discord.js';
 import { createAudioPlayer, AudioPlayerStatus, createAudioResource, StreamType } from '@discordjs/voice';
 import { EventEmitter } from 'events';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { Client as SoundCloudClient } from 'soundcloud-scraper';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -17,10 +18,23 @@ class MusicManager extends EventEmitter {
         this.players = new Collection();
         this.playerListeners = new Set();
         this.invidiousInstance = config.invidiousInstance || 'https://invidious.0xgingi.com';
+        this.soundcloud = new SoundCloudClient(config.soundcloudClientId);
     }
 
     async getVideoDetails(url) {
         try {
+            if (url.includes('soundcloud.com')) {
+                const song = await this.soundcloud.getSongInfo(url);
+                return {
+                    title: song.title,
+                    url: url,
+                    duration: Math.floor(song.duration / 1000),
+                    thumbnail: song.thumbnail,
+                    author: song.author.name,
+                    source: 'soundcloud'
+                };
+            }
+
             const videoId = this.extractVideoId(url);
             if (!videoId) return null;
 
@@ -32,7 +46,8 @@ class MusicManager extends EventEmitter {
                 url: `${this.invidiousInstance}/watch?v=${videoId}`,
                 duration: data.lengthSeconds,
                 thumbnail: data.videoThumbnails[0].url,
-                author: data.author
+                author: data.author,
+                source: 'youtube'
             };
         } catch (error) {
             console.error('Error fetching video details:', error);
@@ -42,6 +57,15 @@ class MusicManager extends EventEmitter {
 
     async createAudioResource(url) {
         try {
+            if (url.includes('soundcloud.com')) {
+                const song = await this.soundcloud.getSongInfo(url);
+                const stream = await song.downloadProgressive();
+                return createAudioResource(stream, {
+                    inputType: StreamType.Arbitrary,
+                    inlineVolume: true
+                });
+            }
+
             const videoId = this.extractVideoId(url);
             if (!videoId) throw new Error('Invalid video URL');
 
@@ -57,7 +81,6 @@ class MusicManager extends EventEmitter {
             }
 
             const stream = await fetch(audioFormat.url).then(res => res.body);
-
             return createAudioResource(stream, {
                 inputType: StreamType.Arbitrary,
                 inlineVolume: true
@@ -70,6 +93,11 @@ class MusicManager extends EventEmitter {
 
     async searchYouTube(query) {
         try {
+            if (query.includes('soundcloud.com')) {
+                const details = await this.getVideoDetails(query);
+                return details ? [details] : null;
+            }
+
             const response = await fetch(`${this.invidiousInstance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
             const results = await response.json();
 
@@ -78,7 +106,8 @@ class MusicManager extends EventEmitter {
                 url: `${this.invidiousInstance}/watch?v=${video.videoId}`,
                 duration: video.lengthSeconds,
                 thumbnail: video.videoThumbnails[0].url,
-                author: video.author
+                author: video.author,
+                source: 'youtube'
             }));
         } catch (error) {
             console.error('Error searching:', error);
@@ -89,12 +118,18 @@ class MusicManager extends EventEmitter {
     extractVideoId(url) {
         const patterns = [
             /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i,
-            /(?:invidious\.[^\/]+\/watch\?v=)([^"&?\/\s]{11})/i
+            /(?:invidious\.[^\/]+\/watch\?v=)([^"&?\/\s]{11})/i,
+            /(?:soundcloud\.com\/.+\/[^\/]+)/i
         ];
 
         for (const pattern of patterns) {
             const match = url.match(pattern);
-            if (match) return match[1];
+            if (match) {
+                if (pattern.toString().includes('soundcloud')) {
+                    return match[0];
+                }
+                return match[1];
+            }
         }
         return null;
     }
@@ -136,20 +171,7 @@ class MusicManager extends EventEmitter {
             if (queue.length > 0) {
                 console.log('Playing next song:', queue[0].title);
                 try {
-                    const stream = ytdl(queue[0].url, {
-                        filter: format => format.audioCodec === 'opus' && format.container === 'webm',
-                        quality: 'highestaudio',
-                        highWaterMark: 1 << 25,
-                        agent: this.agent,
-                        liveBuffer: 1000
-                    });
-
-                    const resource = createAudioResource(stream, {
-                        inputType: StreamType.WebmOpus,
-                        inlineVolume: true
-                    });
-
-                    resource.volume?.setVolume(1);
+                    const resource = await this.createAudioResource(queue[0].url);
                     player.play(resource);
                     
                     const embed = new EmbedBuilder()

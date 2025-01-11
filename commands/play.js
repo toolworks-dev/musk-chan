@@ -5,10 +5,10 @@ import musicManager from '../utils/musicManager.js';
 export default {
     data: new SlashCommandBuilder()
         .setName('play')
-        .setDescription('Play a YouTube video or playlist')
+        .setDescription('Play a YouTube or Soundcloud video')
         .addStringOption(option =>
             option.setName('query')
-                .setDescription('YouTube URL or search query')
+                .setDescription('YouTube/Soundcloud URL or search query')
                 .setRequired(true)),
 
     async execute(interaction) {
@@ -36,7 +36,7 @@ export default {
             connection.subscribe(player);
 
             const queue = musicManager.getGuildQueue(interaction.guildId);
-            const isUrl = query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|invidious\.[^\/]+)\/.+$/);
+            const isUrl = query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|invidious\.[^\/]+|soundcloud\.com)\/.+$/);
 
             try {
                 if (isUrl) {

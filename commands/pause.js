@@ -1,7 +1,7 @@
-const { SlashCommandBuilder } = require('discord.js');
-const musicManager = require('../utils/musicManager');
+import { SlashCommandBuilder } from 'discord.js';
+import musicManager from '../utils/musicManager.js';
 
-module.exports = {
+export default {
     data: new SlashCommandBuilder()
         .setName('pause')
         .setDescription('Pause the current song'),

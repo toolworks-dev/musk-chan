@@ -1,8 +1,8 @@
-const { SlashCommandBuilder } = require('discord.js');
-const { getVoiceConnection } = require('@discordjs/voice');
-const musicManager = require('../utils/musicManager');
+import { SlashCommandBuilder } from 'discord.js';
+import { getVoiceConnection } from '@discordjs/voice';
+import musicManager from '../utils/musicManager.js';
 
-module.exports = {
+export default {
     data: new SlashCommandBuilder()
         .setName('stop')
         .setDescription('Stop playing music and clear the queue'),
