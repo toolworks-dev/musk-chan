@@ -5,13 +5,17 @@ import { dirname } from 'path';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import memoryManager from './memoryManager.js';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+const config = JSON.parse(readFileSync(join(__dirname, '../config.json'), 'utf8'));
+
 class OllamaManager {
     constructor() {
-        this.baseUrl = 'http://ollama:11434';
+        this.baseUrl = config.ollamaUrl || 'http://ollama:11434';
         this.model = 'muskchan2';
     }
 

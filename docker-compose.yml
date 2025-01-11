@@ -1,21 +1,23 @@
 services:
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    restart: unless-stopped
-    volumes:
-      - ollama_models:/root/.ollama
-      - ./Modelfile:/Modelfile
-      - ./Modelfile2:/Modelfile2
-    ports:
-      - "11434:11434"
+  # Ollama service is now optional - comment out if using external instance
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: ollama
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ollama_models:/root/.ollama
+  #     - ./Modelfile:/Modelfile
+  #     - ./Modelfile2:/Modelfile2
+  #   ports:
+  #     - "11434:11434"
 
   musk-chan:
     build: .
     container_name: musk-chan
     restart: unless-stopped
-    depends_on:
-      - ollama
+    # Remove ollama from depends_on if using external instance
+    # depends_on:
+    #   - ollama
     volumes:
       - .:/app
       - /app/node_modules
