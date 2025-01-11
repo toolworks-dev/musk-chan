@@ -25,7 +25,11 @@ A feature-rich Discord bot built with discord.js that allows you to play music f
 - [Node.js](https://nodejs.org/)
 - [Bun](https://bun.sh/) package manager
 - Discord Bot Token
-- Public or Private Invidious Instance
+- Public or Private Invidious Instance 
+  - Find one at https://api.invidious.io/ or host your own (reccomended)
+- Soundcloud Client ID
+  - Get yours following this guide: https://www.npmjs.com/package/soundcloud-downloader#client-id
+  
 ## Installation
 
 1. Clone the repository:

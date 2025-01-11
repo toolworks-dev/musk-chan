@@ -17,7 +17,7 @@ class MusicManager extends EventEmitter {
         this.queues = new Collection();
         this.players = new Collection();
         this.playerListeners = new Set();
-        this.invidiousInstance = config.invidiousInstance || 'https://invidious.0xgingi.com';
+        this.invidiousInstance = config.invidiousInstance;
         this.soundcloud = new SoundCloudClient(config.soundcloudClientId);
     }
 
