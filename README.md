@@ -2,6 +2,8 @@
 
 A feature-rich Discord bot built with discord.js that allows you to play music from a Youtube Invidious instance in your Discord server.
 
+![musk](https://github.com/user-attachments/assets/5c3f68c0-84eb-496f-ac1c-f47affc71dc6)
+
 ## Features
 
 - 🎵 Play music from YouTube (Uses Invidious Instance) and Soundcloud (Uses Soundcloud Client ID)
