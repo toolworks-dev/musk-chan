@@ -1,0 +1,35 @@
+services:
+  ollama:
+    image: ollama/ollama:0.5.5-rocm
+    container_name: ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_models:/root/.ollama
+      - ./Modelfile:/Modelfile
+      - ./Modelfile2:/Modelfile2
+    ports:
+      - "11434:11434"
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      - video
+    security_opt:
+      - seccomp=unconfined
+    environment:
+      - HSA_OVERRIDE_GFX_VERSION=10.3.0
+
+  musk-chan:
+    build: .
+    container_name: musk-chan
+    restart: unless-stopped
+    depends_on:
+      - ollama
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./config.json:/app/config.json
+      - ./memory:/app/memory
+
+volumes:
+  ollama_models: 
