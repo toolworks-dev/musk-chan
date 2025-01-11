@@ -52,6 +52,11 @@ docker compose exec musk-chan bun run pull-models
 docker compose exec ollama ollama create muskchan2 --file Modelfile2
 ```
 
+## Architecture
+
+![alt text](architecture.png)
+
+
 ## AI Chat
 The bot uses Ollama for AI chat functionality. By default, it uses the muskchan2 model (based on llama3.2). You can:
 - Change models using `/chatsettings model <name>`
