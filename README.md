@@ -7,10 +7,6 @@ A feature-rich Discord bot built with discord.js that allows you to play music a
 ## Features
 
 - 🎵 Play music from YouTube (Uses Invidious Instance) and Soundcloud
-- 📑 Queue system with playlist support
-- 🎮 Interactive song selection from search results
-- 🔄 Queue management commands (clear, shuffle, skip)
-- ⏯️ Playback controls (pause, stop)
 - 🤖 AI Chat powered by Ollama with Short Term and Long Term Memory
 
 ## Commands
