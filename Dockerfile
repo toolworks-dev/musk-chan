@@ -23,6 +23,6 @@ RUN bun install
 
 COPY . .
 
-RUN mkdir -p history
+RUN mkdir -p memory
 
 CMD ["bun", "run", "index.js"] 
