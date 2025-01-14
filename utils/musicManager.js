@@ -116,6 +116,13 @@ class MusicManager extends EventEmitter {
     }
 
     extractVideoId(url) {
+        if (url.includes('music.youtube.com')) {
+            const videoId = url.match(/[?&]v=([^&]+)/i)?.[1];
+            if (videoId) {
+                url = `https://youtube.com/watch?v=${videoId}`;
+            }
+        }
+
         const patterns = [
             /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i,
             /(?:invidious\.[^\/]+\/watch\?v=)([^"&?\/\s]{11})/i,
