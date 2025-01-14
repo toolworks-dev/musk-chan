@@ -7,10 +7,6 @@ A feature-rich Discord bot built with discord.js that allows you to play music a
 ## Features
 
 - 🎵 Play music from YouTube (Uses Invidious Instance) and Soundcloud
-- 📑 Queue system with playlist support
-- 🎮 Interactive song selection from search results
-- 🔄 Queue management commands (clear, shuffle, skip)
-- ⏯️ Playback controls (pause, stop)
 - 🤖 AI Chat powered by Ollama with Short Term and Long Term Memory
 
 ## Commands
@@ -48,7 +44,7 @@ docker compose up -d
 ```
 4. Create the custom AI model:
 ```bash
-docker compose exec musk-chan bun run pull-models
+docker compose exec ollama ollama pull llama3.2:3b-instruct-q5_K_M
 docker compose exec ollama ollama create muskchan2 --file Modelfile2
 ```
 
@@ -65,5 +61,4 @@ The bot uses Ollama for AI chat functionality. By default, it uses the muskchan2
 - Delete models with `/chatsettings delete <name>` (cannot delete default muskchan1)
 
 To add more models:
-1. Edit `scripts/pullModels.js` to include additional models
-2. Run `docker compose exec musk-chan bun run pull-models`
+1. Run `docker compose exec ollama ollama pull <model>`
