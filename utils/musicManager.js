@@ -93,7 +93,15 @@ class MusicManager extends EventEmitter {
 
     async searchYouTube(query) {
         try {
-            if (query.includes('soundcloud.com')) {
+            if (query.includes('playlist?list=')) {
+                const playlistDetails = await this.getPlaylistDetails(query);
+                if (playlistDetails && playlistDetails.videos.length > 0) {
+                    return playlistDetails.videos;
+                }
+                return null;
+            }
+
+            if (query.includes('soundcloud.com') || query.includes('youtube.com') || query.includes('youtu.be')) {
                 const details = await this.getVideoDetails(query);
                 return details ? [details] : null;
             }
@@ -119,7 +127,7 @@ class MusicManager extends EventEmitter {
         if (url.includes('music.youtube.com')) {
             const videoId = url.match(/[?&]v=([^&]+)/i)?.[1];
             if (videoId) {
-                url = `https://youtube.com/watch?v=${videoId}`;
+                return videoId;
             }
         }
 
@@ -211,8 +219,11 @@ class MusicManager extends EventEmitter {
     }
 
     extractPlaylistId(url) {
-        const match = url.match(/[&?]list=([^&]+)/i);
-        return match ? match[1] : null;
+        if (url.includes('music.youtube.com') || url.includes('youtube.com')) {
+            const match = url.match(/[&?]list=([^&]+)/i);
+            return match ? match[1] : null;
+        }
+        return null;
     }
 
     getYTDLOptions() {
@@ -227,12 +238,17 @@ class MusicManager extends EventEmitter {
             const response = await fetch(`${this.invidiousInstance}/api/v1/playlists/${playlistId}`);
             const data = await response.json();
 
+            if (!data.videos) {
+                throw new Error('No videos found in playlist');
+            }
+
             const videos = data.videos.map(video => ({
                 title: video.title,
                 url: `${this.invidiousInstance}/watch?v=${video.videoId}`,
                 duration: video.lengthSeconds,
                 thumbnail: video.videoThumbnails?.[0]?.url || '',
-                author: video.author
+                author: video.author,
+                source: 'youtube'
             }));
 
             return {

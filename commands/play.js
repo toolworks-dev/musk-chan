@@ -5,7 +5,7 @@ import musicManager from '../utils/musicManager.js';
 export default {
     data: new SlashCommandBuilder()
         .setName('play')
-        .setDescription('Play a YouTube or Soundcloud video')
+        .setDescription('Play a YouTube/Soundcloud video or playlist')
         .addStringOption(option =>
             option.setName('query')
                 .setDescription('YouTube/Soundcloud URL or search query')
@@ -24,22 +24,66 @@ export default {
 
         await interaction.deferReply();
 
+        const connection = joinVoiceChannel({
+            channelId: voiceChannel.id,
+            guildId: interaction.guildId,
+            adapterCreator: interaction.guild.voiceAdapterCreator,
+            selfDeaf: true
+        });
+
+        const queue = musicManager.getGuildQueue(interaction.guildId);
+        const player = musicManager.getPlayer(interaction.guildId);
+        
+        connection.subscribe(player);
+
         try {
-            const connection = joinVoiceChannel({
-                channelId: voiceChannel.id,
-                guildId: interaction.guildId,
-                adapterCreator: interaction.guild.voiceAdapterCreator,
-                selfDeaf: true
-            });
+            if (query.includes('playlist?list=')) {
+                const playlistDetails = await musicManager.getPlaylistDetails(query);
+                if (!playlistDetails || !playlistDetails.videos.length) {
+                    return interaction.editReply('Failed to get playlist details!');
+                }
 
-            const player = musicManager.getPlayer(interaction.guildId);
-            connection.subscribe(player);
+                queue.push(...playlistDetails.videos);
 
-            const queue = musicManager.getGuildQueue(interaction.guildId);
+                const embed = new EmbedBuilder()
+                    .setTitle('Added Playlist to Queue')
+                    .setDescription(`Added ${playlistDetails.videos.length} songs from playlist: ${playlistDetails.title}`)
+                    .setColor('#00FF00');
+
+                if (queue.length === playlistDetails.videos.length) {
+                    musicManager.setupEventHandlers(interaction.guildId, interaction.channel);
+                    await player.play(await musicManager.createAudioResource(queue[0].url));
+                }
+
+                return interaction.editReply({ embeds: [embed] });
+            }
+
             const isUrl = query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|invidious\.[^\/]+|soundcloud\.com)\/.+$/);
 
             try {
                 if (isUrl) {
+                    const playlistId = musicManager.extractPlaylistId(query);
+                    if (playlistId) {
+                        const playlist = await musicManager.getPlaylistDetails(query);
+                        if (!playlist) {
+                            return interaction.editReply('Failed to get playlist details!');
+                        }
+
+                        playlist.videos.forEach(video => queue.push(video));
+
+                        const embed = new EmbedBuilder()
+                            .setTitle('Added Playlist to Queue')
+                            .setDescription(`Added ${playlist.videos.length} songs from playlist: ${playlist.title}`)
+                            .setColor('#00FF00');
+
+                        if (queue.length === playlist.videos.length) {
+                            musicManager.setupEventHandlers(interaction.guildId, interaction.channel);
+                            await player.play(await musicManager.createAudioResource(queue[0].url));
+                        }
+
+                        return interaction.editReply({ embeds: [embed] });
+                    }
+
                     const videoDetails = await musicManager.getVideoDetails(query);
                     if (!videoDetails) {
                         return interaction.editReply('Failed to get video details!');
