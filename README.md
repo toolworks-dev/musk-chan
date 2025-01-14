@@ -58,7 +58,7 @@ The bot uses Ollama for AI chat functionality. By default, it uses the muskchan2
 - Change models using `/chatsettings model <name>`
 - View available models with `/chatsettings listmodels`
 - Clear chat history with `/chatsettings clear`
-- Delete models with `/chatsettings delete <name>` (cannot delete default muskchan1)
+- Delete models with `/chatsettings delete <name>`
 
 To add more models:
 1. Run `docker compose exec ollama ollama pull <model>`
