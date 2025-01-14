@@ -125,7 +125,7 @@ export default {
             } catch (error) {
                 console.error('Error playing song:', error);
                 if (error.message.includes('Status code: 403')) {
-                    return interaction.editReply('Cannot play this video due to YouTube restrictions. Try setting cookies with /setcookies command.');
+                    return interaction.editReply('Cannot play this video due to YouTube restrictions.');
                 }
                 return interaction.editReply('Failed to play the video. Please try another one.');
             }
