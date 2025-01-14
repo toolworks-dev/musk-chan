@@ -1,7 +1,7 @@
 {
     "token": "",
     "clientId": "",
-    "invidiousInstance": "https://invidious.0xgingi.com",
+    "invidiousInstance": "",
     "soundcloudClientId": "",
     "ollamaUrl": "http://ollama:11434"
 } 
