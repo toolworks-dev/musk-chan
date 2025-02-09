@@ -5,20 +5,32 @@ import musicManager from '../utils/musicManager.js';
 export default {
     data: new SlashCommandBuilder()
         .setName('play')
-        .setDescription('Play a YouTube/Soundcloud video or playlist')
+        .setDescription('Play a YouTube/Soundcloud video, playlist, or audio file')
         .addStringOption(option =>
             option.setName('query')
                 .setDescription('YouTube/Soundcloud URL or search query')
-                .setRequired(true)),
+                .setRequired(false))
+        .addAttachmentOption(option =>
+            option.setName('file')
+                .setDescription('Audio file to play (MP3, FLAC, WAV, etc.)')
+                .setRequired(false)),
 
     async execute(interaction) {
         const query = interaction.options.getString('query');
+        const file = interaction.options.getAttachment('file');
         const voiceChannel = interaction.member.voice.channel;
 
+        if (!query && !file) {
+            return interaction.reply({
+                content: 'You need to provide either a search query or an audio file!',
+                ephemeral: true
+            });
+        }
+
         if (!voiceChannel) {
-            return interaction.reply({ 
+            return interaction.reply({
                 content: 'You need to be in a voice channel!',
-                ephemeral: true 
+                ephemeral: true
             });
         }
 
@@ -37,6 +49,30 @@ export default {
         connection.subscribe(player);
 
         try {
+            if (file) {
+                const supportedFormats = ['.mp3', '.flac', '.wav', '.ogg', '.m4a'];
+                const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+                
+                if (!supportedFormats.includes(fileExtension)) {
+                    return interaction.editReply(`Unsupported file format! Supported formats: ${supportedFormats.join(', ')}`);
+                }
+
+                const fileDetails = musicManager.getFileDetails(file);
+                queue.push(fileDetails);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('Added to Queue')
+                    .setDescription(`[${fileDetails.title}](${fileDetails.url})`)
+                    .setColor('#00FF00');
+
+                if (queue.length === 1) {
+                    musicManager.setupEventHandlers(interaction.guildId, interaction.channel);
+                    await player.play(await musicManager.createAudioResourceFromAttachment(file));
+                }
+
+                return interaction.editReply({ embeds: [embed] });
+            }
+
             if (query.includes('playlist?list=')) {
                 const playlistDetails = await musicManager.getPlaylistDetails(query);
                 if (!playlistDetails || !playlistDetails.videos.length) {
@@ -53,6 +89,23 @@ export default {
                 if (queue.length === playlistDetails.videos.length) {
                     musicManager.setupEventHandlers(interaction.guildId, interaction.channel);
                     await player.play(await musicManager.createAudioResource(queue[0].url));
+                }
+
+                return interaction.editReply({ embeds: [embed] });
+            }
+
+            if (query && musicManager.isDirectAudioUrl(query)) {
+                const fileDetails = musicManager.getDirectAudioDetails(query);
+                queue.push(fileDetails);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('Added to Queue')
+                    .setDescription(`[${fileDetails.title}](${fileDetails.url})`)
+                    .setColor('#00FF00');
+
+                if (queue.length === 1) {
+                    musicManager.setupEventHandlers(interaction.guildId, interaction.channel);
+                    await player.play(await musicManager.createAudioResourceFromUrl(query));
                 }
 
                 return interaction.editReply({ embeds: [embed] });

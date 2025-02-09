@@ -5,6 +5,7 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { Client as SoundCloudClient } from 'soundcloud-scraper';
+import { createReadStream } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -275,6 +276,64 @@ class MusicManager extends EventEmitter {
 
         this.on('songStart', onSongStart);
         this.on('playerError', onPlayerError);
+    }
+
+    async createAudioResourceFromAttachment(attachment) {
+        try {
+            return createAudioResource(attachment.proxyURL, {
+                inputType: StreamType.Arbitrary,
+                inlineVolume: true
+            });
+        } catch (error) {
+            console.error('Error creating audio resource from attachment:', error);
+            throw error;
+        }
+    }
+
+    getFileDetails(attachment) {
+        return {
+            title: attachment.name,
+            url: attachment.proxyURL,
+            duration: 0, 
+            thumbnail: 'https://cdn.discordapp.com/avatars/1327314109657518212/8b4a88e8b3aa4805967f07feb5cad6b6.webp',
+            author: 'Local File',
+            source: 'local'
+        };
+    }
+
+    isDirectAudioUrl(url) {
+        try {
+            const supportedFormats = ['.mp3', '.flac', '.wav', '.ogg', '.m4a'];
+            const urlObj = new URL(url);
+            const path = urlObj.pathname.toLowerCase();
+            return supportedFormats.some(format => path.endsWith(format));
+        } catch {
+            return false;
+        }
+    }
+
+    getDirectAudioDetails(url) {
+        const fileName = url.split('/').pop();
+        return {
+            title: fileName,
+            url: url,
+            duration: 0,
+            thumbnail: 'https://cdn.discordapp.com/avatars/1327314109657518212/8b4a88e8b3aa4805967f07feb5cad6b6.webp',
+            author: 'Direct Link',
+            source: 'direct'
+        };
+    }
+
+    async createAudioResourceFromUrl(url) {
+        try {
+            return createAudioResource(url, {
+                inputType: StreamType.Arbitrary,
+                inlineVolume: true
+            });
+        } catch (error) {
+            console.error('Error creating audio resource from URL:', error);
+            throw error;
+        }
     }
 }
 
