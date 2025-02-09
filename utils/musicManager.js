@@ -13,8 +13,9 @@ const __dirname = dirname(__filename);
 const config = JSON.parse(readFileSync(join(__dirname, '../config.json'), 'utf8'));
 
 class MusicManager extends EventEmitter {
-    constructor() {
+    constructor(client) {
         super();
+        this.client = client;
         this.queues = new Collection();
         this.players = new Collection();
         this.playerListeners = new Set();
@@ -361,14 +362,19 @@ class MusicManager extends EventEmitter {
     }
 
     checkVoiceChannel(connection) {
-        const channel = connection.joinConfig.channelId;
-        const members = connection.joinConfig.guild.channels.cache
-            .get(channel)?.members;
-        
-        if (!members) return false;
-        
-        const humanCount = members.filter(member => !member.user.bot).size;
-        return humanCount === 0;
+        try {
+            const channel = connection.joinConfig.channelId;
+            const guild = connection.joinConfig.guildId;
+            const voiceChannel = this.client.guilds.cache.get(guild)?.channels.cache.get(channel);
+            
+            if (!voiceChannel?.members) return false;
+            
+            const humanCount = voiceChannel.members.filter(member => !member.user.bot).size;
+            return humanCount === 0;
+        } catch (error) {
+            console.error('Error checking voice channel:', error);
+            return false;
+        }
     }
 
     handleVoiceStateUpdate(oldState, newState, connection) {
@@ -387,4 +393,4 @@ class MusicManager extends EventEmitter {
     }
 }
 
-export default new MusicManager(); 
+export default MusicManager; 
