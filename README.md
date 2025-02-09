@@ -6,7 +6,7 @@ A feature-rich Discord bot built with discord.js that allows you to play music a
 
 ## Features
 
-- 🎵 Play music from YouTube (Uses Invidious Instance) and Soundcloud
+- 🎵 Play music from YouTube (Uses Invidious Instance), Soundcloud, File Attachments, and Direct Links
 - 🤖 AI Chat powered by Ollama with Short Term and Long Term Memory
 
 ## Commands
