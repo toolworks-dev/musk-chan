@@ -20,6 +20,7 @@ class MusicManager extends EventEmitter {
         this.playerListeners = new Set();
         this.invidiousInstance = config.invidiousInstance;
         this.soundcloud = new SoundCloudClient(config.soundcloudClientId);
+        this.disconnectTimers = new Collection();
     }
 
     async getVideoDetails(url) {
@@ -333,6 +334,55 @@ class MusicManager extends EventEmitter {
         } catch (error) {
             console.error('Error creating audio resource from URL:', error);
             throw error;
+        }
+    }
+
+    startDisconnectTimer(guildId, connection) {
+        this.clearDisconnectTimer(guildId);
+        
+        this.disconnectTimers.set(guildId, setTimeout(() => {
+            const queue = this.getGuildQueue(guildId);
+            const player = this.getPlayer(guildId);
+            
+            queue.length = 0;
+            player.stop();
+            connection.destroy();
+            
+            this.disconnectTimers.delete(guildId);
+        }, 30000));
+    }
+
+    clearDisconnectTimer(guildId) {
+        const timer = this.disconnectTimers.get(guildId);
+        if (timer) {
+            clearTimeout(timer);
+            this.disconnectTimers.delete(guildId);
+        }
+    }
+
+    checkVoiceChannel(connection) {
+        const channel = connection.joinConfig.channelId;
+        const members = connection.joinConfig.guild.channels.cache
+            .get(channel)?.members;
+        
+        if (!members) return false;
+        
+        const humanCount = members.filter(member => !member.user.bot).size;
+        return humanCount === 0;
+    }
+
+    handleVoiceStateUpdate(oldState, newState, connection) {
+        if (!connection) return;
+        
+        const guildId = connection.joinConfig.guildId;
+        
+        if (newState.channelId === connection.joinConfig.channelId) {
+            this.clearDisconnectTimer(guildId);
+            return;
+        }
+        
+        if (this.checkVoiceChannel(connection)) {
+            this.startDisconnectTimer(guildId, connection);
         }
     }
 }

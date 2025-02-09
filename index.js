@@ -3,6 +3,7 @@ import { loadCommands } from './handlers/commandHandler.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync } from 'fs';
+import { getVoiceConnection } from '@discordjs/voice';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -37,6 +38,13 @@ client.on('interactionCreate', async interaction => {
             content: 'There was an error executing this command!', 
             ephemeral: true 
         });
+    }
+});
+
+client.on('voiceStateUpdate', (oldState, newState) => {
+    const connection = getVoiceConnection(oldState.guild.id);
+    if (connection) {
+        musicManager.handleVoiceStateUpdate(oldState, newState, connection);
     }
 });
 

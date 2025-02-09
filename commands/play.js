@@ -43,6 +43,10 @@ export default {
             selfDeaf: true
         });
 
+        if (musicManager.checkVoiceChannel(connection)) {
+            musicManager.startDisconnectTimer(interaction.guildId, connection);
+        }
+
         const queue = musicManager.getGuildQueue(interaction.guildId);
         const player = musicManager.getPlayer(interaction.guildId);
         
