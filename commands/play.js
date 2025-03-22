@@ -23,14 +23,14 @@ export default {
         if (!query && !file) {
             return interaction.reply({
                 content: 'You need to provide either a search query or an audio file!',
-                ephemeral: true
+                flags: 1 << 6
             });
         }
 
         if (!voiceChannel) {
             return interaction.reply({
                 content: 'You need to be in a voice channel!',
-                ephemeral: true
+                flags: 1 << 6
             });
         }
 

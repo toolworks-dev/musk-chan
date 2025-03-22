@@ -37,7 +37,7 @@ client.on('interactionCreate', async interaction => {
         console.error(error);
         await interaction.reply({ 
             content: 'There was an error executing this command!', 
-            ephemeral: true 
+            flags: 1 << 6
         });
     }
 });
@@ -49,9 +49,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     }
 });
 
-const musicManager = new MusicManager(client);
-
-export { musicManager };
+export const musicManager = new MusicManager(client);
 
 await loadCommands(client, config);
 await client.login(config.token); 

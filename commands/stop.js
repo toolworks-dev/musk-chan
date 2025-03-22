@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { getVoiceConnection } from '@discordjs/voice';
-import musicManager from '../utils/musicManager.js';
+import { musicManager } from '../index.js';
 
 export default {
     data: new SlashCommandBuilder()

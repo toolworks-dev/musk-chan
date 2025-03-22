@@ -27,31 +27,67 @@ class MusicManager extends EventEmitter {
     async getVideoDetails(url) {
         try {
             if (url.includes('soundcloud.com')) {
-                const song = await this.soundcloud.getSongInfo(url);
-                return {
-                    title: song.title,
-                    url: url,
-                    duration: Math.floor(song.duration / 1000),
-                    thumbnail: song.thumbnail,
-                    author: song.author.name,
-                    source: 'soundcloud'
-                };
+                try {
+                    if (url.includes('on.soundcloud.com')) {
+                        try {
+                            const response = await fetch(url, { 
+                                redirect: 'follow',
+                                method: 'HEAD'
+                            });
+                            if (response.url) {
+                                url = response.url;
+                            }
+                        } catch (error) {
+                            console.error('Error following SoundCloud redirect:', error);
+                        }
+                    }
+                    
+                    const song = await this.soundcloud.getSongInfo(url);
+                    return {
+                        title: song.title,
+                        url: url,
+                        duration: Math.floor(song.duration / 1000),
+                        thumbnail: song.thumbnail,
+                        author: song.author.name,
+                        source: 'soundcloud'
+                    };
+                } catch (error) {
+                    console.error('SoundCloud error:', error.message);
+                    return null;
+                }
             }
 
             const videoId = this.extractVideoId(url);
             if (!videoId) return null;
 
-            const response = await fetch(`${this.invidiousInstance}/api/v1/videos/${videoId}`);
-            const data = await response.json();
+            try {
+                const response = await fetch(`${this.invidiousInstance}/api/v1/videos/${videoId}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const text = await response.text();
+                let data;
+                
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    console.error('Failed to parse JSON response:', text.substring(0, 100) + '...');
+                    throw new Error('Invalid JSON response from Invidious');
+                }
 
-            return {
-                title: data.title,
-                url: `${this.invidiousInstance}/watch?v=${videoId}`,
-                duration: data.lengthSeconds,
-                thumbnail: data.videoThumbnails[0].url,
-                author: data.author,
-                source: 'youtube'
-            };
+                return {
+                    title: data.title,
+                    url: `${this.invidiousInstance}/watch?v=${videoId}`,
+                    duration: data.lengthSeconds,
+                    thumbnail: data.videoThumbnails?.[0]?.url || '',
+                    author: data.author,
+                    source: 'youtube'
+                };
+            } catch (error) {
+                console.error('Error with Invidious API:', error);
+                return null;
+            }
         } catch (error) {
             console.error('Error fetching video details:', error);
             return null;
@@ -61,6 +97,20 @@ class MusicManager extends EventEmitter {
     async createAudioResource(url) {
         try {
             if (url.includes('soundcloud.com')) {
+                if (url.includes('on.soundcloud.com')) {
+                    try {
+                        const response = await fetch(url, { 
+                            redirect: 'follow',
+                            method: 'HEAD'
+                        });
+                        if (response.url) {
+                            url = response.url;
+                        }
+                    } catch (error) {
+                        console.error('Error following SoundCloud redirect:', error);
+                    }
+                }
+                
                 const song = await this.soundcloud.getSongInfo(url);
                 const stream = await song.downloadProgressive();
                 return createAudioResource(stream, {
@@ -104,7 +154,8 @@ class MusicManager extends EventEmitter {
                 return null;
             }
 
-            if (query.includes('soundcloud.com') || query.includes('youtube.com') || query.includes('youtu.be')) {
+            if (query.includes('soundcloud.com') || query.includes('on.soundcloud.com') || 
+                query.includes('youtube.com') || query.includes('youtu.be')) {
                 const details = await this.getVideoDetails(query);
                 return details ? [details] : null;
             }
@@ -137,7 +188,8 @@ class MusicManager extends EventEmitter {
         const patterns = [
             /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i,
             /(?:invidious\.[^\/]+\/watch\?v=)([^"&?\/\s]{11})/i,
-            /(?:soundcloud\.com\/.+\/[^\/]+)/i
+            /(?:soundcloud\.com\/[\w-]+\/[\w-]+(?:\/[\w-]+)?)/i,
+            /(?:on\.soundcloud\.com\/[\w-]+)/i
         ];
 
         for (const pattern of patterns) {
@@ -341,6 +393,7 @@ class MusicManager extends EventEmitter {
     startDisconnectTimer(guildId, connection) {
         this.clearDisconnectTimer(guildId);
         
+        const timeout = 30000; // 30 seconds
         this.disconnectTimers.set(guildId, setTimeout(() => {
             const queue = this.getGuildQueue(guildId);
             const player = this.getPlayer(guildId);
@@ -350,7 +403,7 @@ class MusicManager extends EventEmitter {
             connection.destroy();
             
             this.disconnectTimers.delete(guildId);
-        }, 30000));
+        }, timeout));
     }
 
     clearDisconnectTimer(guildId) {
