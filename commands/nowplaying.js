@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import musicManager from '../utils/musicManager.js';
+import { musicManager } from '../index.js';
 
 export default {
     data: new SlashCommandBuilder()
